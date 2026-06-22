@@ -19,7 +19,6 @@ PWA-приложение для поиска транспортного сред
 | Валидация | Zod v4                                                          |
 | Стили     | Tailwind CSS v4                                                 |
 | PWA       | Serwist                                                         |
-| Тесты     | Vitest                                                          |
 
 ## Быстрый старт
 
@@ -116,10 +115,6 @@ RATE_LIMIT_SEARCH_PER_MINUTE="30"
 | `PUT`    | `/api/admin/vehicles/[id]` | Обновить ТС    |
 | `DELETE` | `/api/admin/vehicles/[id]` | Удалить ТС     |
 
-```bash
-curl -H "Authorization: Bearer your-admin-secret" http://localhost:3000/api/admin/vehicles
-```
-
 ## Структура проекта
 
 ```
@@ -143,14 +138,6 @@ src/
     ├── lib/normalize-plate.ts  # Нормализация ГРЗ
     └── ui/Navigation.tsx       # Навигация
 ```
-
-## Тесты
-
-```bash
-npm test
-```
-
-Покрыто: нормализация ГРЗ (`src/shared/lib/__tests__/normalize-plate.test.ts`).
 
 ## Сборка
 
