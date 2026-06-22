@@ -1,0 +1,43 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id               String   @id @default(cuid())
+  login            String   @unique
+  passwordHash     String
+  displayName      String?
+  phone            String?
+  email            String?
+  isAdmin          Boolean  @default(false)
+  vehicleId        String?
+  vehicle          Vehicle? @relation(fields: [vehicleId], references: [id])
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model Vehicle {
+  id              String    @id @default(cuid())
+  plate           String
+  normalizedPlate String    @unique
+  brand           String?
+  model           String?
+  storageAddress  String?
+  storagePhone    String?
+  storageLat      Float?
+  storageLng      Float?
+  status          String    @default("unknown")
+  isPublic        Boolean   @default(false)
+  evacuatedAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  users User[]
+
+  @@index([normalizedPlate])
+}

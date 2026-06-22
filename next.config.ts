@@ -1,7 +1,15 @@
-import type { NextConfig } from "next";
+import type { NextConfig } from 'next'
+import withSerwist from '@serwist/next'
 
 const nextConfig: NextConfig = {
-  /* config options here */
-};
+  turbopack: {},
+  allowedDevOrigins: ['192.168.0.81'],
+}
 
-export default nextConfig;
+const withSerwistConfig = withSerwist({
+  swSrc: 'src/app/sw.ts',
+  swDest: 'public/sw.js',
+  disable: process.env.NODE_ENV === 'development',
+})
+
+export default withSerwistConfig(nextConfig)
