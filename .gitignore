@@ -39,6 +39,7 @@ yarn-error.log*
 storage/
 
 # SQLite database
+/data/
 *.db
 *.db-shm
 *.db-wal
