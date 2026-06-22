@@ -9,6 +9,13 @@ COPY package*.json ./
 RUN npm ci
 
 COPY . .
+
+# Placeholder-значения для валидации env при сборке (не попадают в финальный образ)
+ENV DATABASE_URL=file:./data/build.db \
+    SESSION_SECRET=build-time-placeholder-secret-at-least-32ch \
+    ADMIN_SECRET=build-placeholder \
+    APP_URL=https://localhost
+
 # Генерируем Prisma-клиент (src/generated/prisma исключён из .gitignore)
 RUN npx prisma generate
 RUN npm run build
