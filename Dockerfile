@@ -39,6 +39,7 @@ COPY --from=prod-deps /app/node_modules      ./node_modules
 COPY --from=builder   /app/.next             ./.next
 COPY --from=builder   /app/public            ./public
 COPY --from=builder   /app/src/generated     ./src/generated
+COPY --from=builder   /app/src/shared        ./src/shared
 
 COPY package*.json     ./
 COPY next.config.ts    ./

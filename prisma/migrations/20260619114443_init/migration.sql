@@ -6,6 +6,7 @@ CREATE TABLE "User" (
     "displayName" TEXT,
     "phone" TEXT,
     "email" TEXT,
+    "isAdmin" BOOLEAN NOT NULL DEFAULT false,
     "vehicleId" TEXT,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" DATETIME NOT NULL,

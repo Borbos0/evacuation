@@ -1,57 +1,67 @@
-#!/bin/bash
-set -e
+#!/usr/bin/env bash
+set -Eeuo pipefail
+cd "$(dirname "$0")"
 
-# --- Настройки (изменить перед запуском) ----------------------------
-DOMAIN="YOUR_DOMAIN"   # например: evac.mysite.ru
-EMAIL="YOUR_EMAIL"     # ваш email для уведомлений Let's Encrypt
-STAGING=0              # 1 = тест без rate-limit, 0 = боевой сертификат
-# --------------------------------------------------------------------
-
-STAGING_FLAG=""
-[ "$STAGING" -eq 1 ] && STAGING_FLAG="--staging"
-
-echo "[1/5] Проверяем наличие сертификата..."
-if docker compose run --rm --entrypoint "" certbot \
-     test -f "/etc/letsencrypt/live/$DOMAIN/fullchain.pem" 2>/dev/null; then
-  echo "Сертификат уже существует, запускаем сервисы..."
-  docker compose up -d
-  exit 0
+# Читаем переменные из .env
+if [ -f .env ]; then
+  set -a
+  source .env
+  set +a
 fi
 
-echo "[2/5] Создаём временный self-signed сертификат (чтобы nginx мог стартовать)..."
-docker compose run --rm --entrypoint "" certbot sh -c "
-  mkdir -p /etc/letsencrypt/live/$DOMAIN &&
-  openssl req -x509 -nodes -newkey rsa:2048 -days 1 \
-    -keyout /etc/letsencrypt/live/$DOMAIN/privkey.pem \
-    -out /etc/letsencrypt/live/$DOMAIN/fullchain.pem \
-    -subj '/CN=localhost'
+DOMAIN="${DOMAIN:-}"
+EMAIL="${LETSENCRYPT_EMAIL:-}"
+
+if [ -z "$DOMAIN" ]; then
+  echo "Ошибка: DOMAIN не задан в .env"
+  exit 1
+fi
+if [ -z "$EMAIL" ]; then
+  echo "Ошибка: LETSENCRYPT_EMAIL не задан в .env"
+  exit 1
+fi
+
+echo "[1/7] Домен: $DOMAIN, Email: $EMAIL"
+
+echo "[2/7] Подставляем домен в конфиг nginx..."
+sed -i "s/YOUR_DOMAIN/$DOMAIN/g" nginx/default.conf
+
+echo "[3/7] Собираем и запускаем приложение..."
+docker compose up -d --build app
+
+echo "[4/7] Создаём временный self-signed сертификат..."
+docker compose run --rm --entrypoint sh certbot -c "
+  mkdir -p /etc/letsencrypt/live/$DOMAIN
+  if [ ! -f /etc/letsencrypt/live/$DOMAIN/fullchain.pem ]; then
+    openssl req -x509 -nodes -newkey rsa:2048 -days 1 \
+      -keyout /etc/letsencrypt/live/$DOMAIN/privkey.pem \
+      -out /etc/letsencrypt/live/$DOMAIN/fullchain.pem \
+      -subj '/CN=localhost'
+  fi
 "
 
-echo "[3/5] Запускаем nginx и приложение..."
-docker compose up -d nginx app
-echo "Ждём запуска nginx..."
+echo "[5/7] Запускаем nginx..."
+docker compose up -d nginx
 sleep 5
 
-echo "[4/5] Удаляем временный сертификат..."
-docker compose run --rm --entrypoint "" certbot sh -c "
-  rm -rf /etc/letsencrypt/live/$DOMAIN &&
-  rm -rf /etc/letsencrypt/archive/$DOMAIN &&
-  rm -rf /etc/letsencrypt/renewal/$DOMAIN.conf
+echo "[6/7] Удаляем временный сертификат и получаем настоящий..."
+docker compose run --rm --entrypoint sh certbot -c "
+  rm -rf /etc/letsencrypt/live/$DOMAIN
+  rm -rf /etc/letsencrypt/archive/$DOMAIN
+  rm -f /etc/letsencrypt/renewal/$DOMAIN.conf
 "
 
-echo "[5/5] Запрашиваем настоящий сертификат от Let's Encrypt..."
-docker compose run --rm certbot certonly \
+docker compose run --rm --entrypoint certbot certbot certonly \
   --webroot -w /var/www/certbot \
   -d "$DOMAIN" -d "www.$DOMAIN" \
   --email "$EMAIL" \
-  --agree-tos --no-eff-email \
-  $STAGING_FLAG
+  --agree-tos --no-eff-email
 
-echo "Перезагружаем nginx с настоящим сертификатом..."
+echo "[7/7] Перезагружаем nginx с настоящим сертификатом..."
 docker compose exec nginx nginx -s reload
 
-echo "Запускаем контейнер автообновления сертификата..."
-docker compose up -d certbot
-
 echo ""
-echo "Готово! Сайт доступен по адресу: https://$DOMAIN"
+echo "Готово! Сайт доступен: https://$DOMAIN"
+echo ""
+echo "Добавь автообновление сертификата (crontab -e):"
+echo "  0 4 * * * cd $(pwd) && ./renew-letsencrypt.sh >> /var/log/certbot-renew.log 2>&1"
